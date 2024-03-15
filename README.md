@@ -1,22 +1,16 @@
-Idea:
-Encoder/Decoder
+Program that encodes and decodes data
+Just uses the command line
 
+Currently a work in progress
 
+Current features:
+Rough way for users to interact
+alphabet encoder
+alphabet decoder
 
-Features:
-
-User can input data and it gets encoded (Not readable normally)
-User can input encoded string and get it decoded
-Make the alphabet cypher
-
-(encoder Isaac)
-(make a read.me Isaac)
-(decoder Noah)
-
-Side goals:
-
-Able to use whole files
-Multiple ways to encode
-Stacking different encoding methods
+Planned features:
+read and write to files
+more complex types of cyphers
+stacking cyphers on top of each other
 
 
