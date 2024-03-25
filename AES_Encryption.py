@@ -13,7 +13,7 @@ class AESCipher:
         cipher = AES.new(self.key, AES.MODE_CBC, iv)
         # encode
         encrypted_data = cipher.encrypt(pad(data.encode(), AES.block_size))
-        # 将IV添加到加密数据前面，以便解密时使用
+        #  Add the IV in front of the encrypted data for use in decryption
         return iv + encrypted_data
 
     def decrypt(self, encrypted_data):
