@@ -14,3 +14,9 @@ more complex types of cyphers
 stacking cyphers on top of each other
 
 
+==========================================
+2024-3-22
+Upload: 
+MD5 cypher way
+AES cypeher way
+both of them in cypher branch
