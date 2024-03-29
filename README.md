@@ -18,3 +18,7 @@ stacking cyphers on top of each other
 2024-3-22
 Upload: 
 AES cypeher way
+
+===========================================
+2024-3-28
+AES cypher way has some problem, MD5 and alphabet is fine. I rewrite the function of read and write since some function and sentence only accept string. I'm not found the fourth way to finished yet so way 4 is only "pass" now.
