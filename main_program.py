@@ -4,30 +4,41 @@ Main program for EECE2140, Final Noah-Issac
 Created by <Noah>,<Issac>
 Created on 24-3-27, Wednesday:
 """
-from Crypto.Util.Padding import pad
 import hashlib
 from Crypto.Cipher import AES
-from Crypto.Util.Padding import unpad
 from Crypto.Random import get_random_bytes
-
-# needed for alphabet encoder/decoder
-alphabet = ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i', 'j', 'k', 'l', 'm', 'n', 'o', 'p', 'q', 'r', 's', 't', 'u',
-            'v', 'w', 'x', 'y', 'z']
+from Crypto.Util.Padding import pad, unpad
+from pypdf import PdfReader
 
 
-def read_file(file_to_open):
-    # all file can be seen as txt
-    with open(file_to_open, 'r', encoding='utf-8') as opened_file:
-        return opened_file.read()  # Returns the contents of the file as a single string
+def read_file(filename):
+    if filename.endswith('.txt'):
+        clean_lines = []
+        opened_file = open(filename, 'r')
+        lines = opened_file.readlines()
+        # gets ride of \n and appends to clean_lines list
+        for i in range(len(lines)):
+            clean_lines.append(lines[i].strip())
+        opened_file.close()
+        return clean_lines
+    elif filename.endswith('.pdf'):
+        pages = []
+        opened_pdf = PdfReader(filename)
+        for page in opened_pdf.pages:
+            page_text = page.extract_text()
+            if page_text:
+                pages.append(page_text.replace("\n", " "))
+        return ' '.join(pages)
+    else:
+        raise ValueError("Unsupported file type.")
 
 
-def write_file(filename, data, is_binary=False):
-    mode = 'wb' if is_binary else 'w'
-    with open(filename, mode) as file:
-        if is_binary:
-            file.write(data)
-        else:
-            file.write(data + "\n")
+def write_file(filename, data):
+    # data to be added should be formatted in a list. linebreaks will be inserted between indices
+    # works best with .txt files, will work with .pdf files but formatting will be poor
+    opened_file = open(filename, 'w')
+    opened_file.write(str(data))
+    opened_file.write("\n")
 
 
 class AESCipher:
@@ -35,99 +46,97 @@ class AESCipher:
         self.key = key
 
     def encrypt(self, data):
-        if isinstance(data, str):
-            data = data.encode('utf-8')
+        # init iv
         iv = get_random_bytes(AES.block_size)
+        # create cipher
         cipher = AES.new(self.key, AES.MODE_CBC, iv)
-        encrypted_data = cipher.encrypt(pad(data, AES.block_size))
+        # encode
+        encrypted_data = cipher.encrypt(pad(data.encode(), AES.block_size))
+        #  Add the IV in front of the encrypted data for use in decryption
         return iv + encrypted_data
 
     def decrypt(self, encrypted_data):
+        #  Extracting IVs from encrypted data
         iv = encrypted_data[:AES.block_size]
-        encrypted_content = encrypted_data[AES.block_size:]
+        # create decode
         cipher = AES.new(self.key, AES.MODE_CBC, iv)
-        original_data = unpad(cipher.decrypt(encrypted_content), AES.block_size)
-        return original_data.decode('utf-8')
+        # decode
+        original_data = unpad(cipher.decrypt(encrypted_data[AES.block_size:]), AES.block_size)
+        return original_data.decode()
 
-'''
-def read_binary_file(file_path):
-    with open(file_path, 'rb') as file:
-        binary_data = file.read()
-    return binary_data
-def decrypt_file(file_path, aes_key):
-    encrypted_data = read_binary_file(file_path)
-    aes_cipher = AESCipher(aes_key)
-    decrypted_data = aes_cipher.decrypt(encrypted_data)
-    return decrypted_data
-'''
 
-def alpha_encode(user_inp):
-    encoded_msg = ""
-    for i in range(len(user_inp)):
-        # only proceeds if the element is in the alphabet
-        if user_inp[i] in alphabet:
-            # let z and turns to a
-            if user_inp[i] == 'z':
-                encoded_msg = encoded_msg + 'a'
+class AlphaCipher:
+    # Class attribute for the alphabet
+    alphabet = ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i', 'j', 'k', 'l', 'm', 'n', 'o', 'p', 'q', 'r', 's', 't', 'u',
+                'v', 'w', 'x', 'y', 'z']
+
+    def encode(self, user_inp):
+        encoded_msg = ""
+        for char in user_inp:
+            # Only proceeds if the element is in the alphabet
+            if char in self.alphabet:
+                # Catches 'z' and turns to 'a'
+                if char == 'z':
+                    encoded_msg += 'a'
+                else:
+                    # Finds the index of the specific element, adds one and then pull
+                    encoded_msg += self.alphabet[1 + self.alphabet.index(char)]
+            # If not in alphabet then just passes it through
             else:
-                # finds the index of the specific element, adds one and then pulls that number from the alphabet list
-                encoded_msg = encoded_msg + (alphabet[1 + alphabet.index(user_inp[i])])
-        # if not in alphabet then just passes it through
-        else:
-            encoded_msg = encoded_msg + user_inp[i]
-    return encoded_msg
+                encoded_msg += char
+        return encoded_msg
 
-
-def alpha_decode(inp):
-    decoded_msg = ""
-    for i in range(len(inp)):
-        # only proceeds if the element is in the alphabet
-        if inp[i] in alphabet:
-            # turns a to z
-            if inp[i] == 'a':
-                decoded_msg = decoded_msg + 'z'
+    def decode(self, inp):
+        decoded_msg = ""
+        for char in inp:
+            # Only proceeds if the element is in the alphabet
+            if char in self.alphabet:
+                # Turns 'a' to 'z'
+                if char == 'a':
+                    decoded_msg += 'z'
+                else:
+                    # Finds the index of the specific element, subtracts one and then pull
+                    decoded_msg += self.alphabet[self.alphabet.index(char) - 1]
+                    # If not in alphabet then just passes it through
             else:
-                # finds the index of the specific element, subtracts one then pulls that number from the alphabet list
-                decoded_msg = decoded_msg + (alphabet[alphabet.index(inp[i]) - 1])
-                # if not in alphabet then just passes it through
-        else:
-            decoded_msg = decoded_msg + inp[i]
-    return decoded_msg
+                decoded_msg += char
+        return decoded_msg
 
 
 def generate_md5_hash(file):
-        hash_md5 = hashlib.md5()
-        hash_md5.update(file.encode('utf-8'))
-        return hash_md5.hexdigest()
+        hash = hashlib.md5()
+        hash.update(file.encode('utf-8'))
+        return hash.hexdigest()
 
 
 def user_interface():
     aes_key = get_random_bytes(16)
     print('\nWelcome to Encryption or Decryption Program.')
-    mode = input("Encryption press 1 and Decryption press 2")
+    mode = input("Encryption press 1 and Decryption press 2: ")
     if mode == '1':
         filename = input("Please enter the name of the text file you want to encrypt: ")
         file_content = read_file(filename)
+        content_string = ' '.join(file_content)
         print("\nChoose the encryption method:")
         print("1. MD5 Hash (Note: This is not reversible, not suitable for encryption)")
         print("2. AES Encryption")
         print("3. Simple Alphabet Shift Encode")
-        print("4. asdasdasdasdasd")
+        print("4. ")
         choice = input("Your choice (1/2/3/4): ")
 
         if choice == "1":
-            hash_result = generate_md5_hash(file_content)
+            hash_result = generate_md5_hash(content_string)
             print("MD5 Hash of the file content:", hash_result)
             write_file("Hashed_" + filename, hash_result)
         elif choice == '2':
-            aes_cipher = AESCipher(aes_key)
-            encrypted_data = aes_cipher.encrypt(file_content)
-            with open("AES_encrypted_" + filename, 'wb') as file:
-                file.write(encrypted_data)
-            print("File has been encrypted.")
+            cipher = AESCipher(aes_key)
+            encrypted = cipher.encrypt(content_string)
+            write_file("AES Encryption" + filename, encrypted)
+            print("File content has been encoded.")
         elif choice == '3':
-            encoded_message = alpha_encode(file_content)
-            write_file("alpha_encoded_" + filename, encoded_message)
+            cipher = AlphaCipher()
+            encoded_message = cipher.encode(content_string)
+            write_file("Alpha_encoded_" + filename, encoded_message)
             print("File content has been encoded.")
         elif choice == "4":
             pass
@@ -137,26 +146,27 @@ def user_interface():
     elif mode == "2":
         filename = input("Please enter the name of the file you want to decrypt: ")
         file_content = read_file(filename)
+        content_string = ' '.join(file_content)
         print("\nChoose the decryption method:")
         print("1. AES Decryption")
         print("2. Simple Alphabet Shift Encode")
         print("3. Hash Decryption")
+        print("4. ")
         choice = input("Your choice (1/2/3/4): ")
+
         if choice == '1':
-            aes_cipher = AESCipher(aes_key)
-            try:
-                decrypted_data = aes_cipher.decrypt(file_content)
-                new_filename = "AES_decrypted_" + filename.replace("encrypted_", "")
-                write_file(new_filename, decrypted_data, is_binary=False)
-                print("File has been decrypted.")
-            except Exception as e:
-                print(f"Decryption failed: {e}")
+            cipher = AESCipher(aes_key)
+            content_bytes = bytes(content_string[2:-1], "utf-8").decode("unicode_escape").encode("raw_unicode_escape")
+            decrypted = cipher.decrypt(content_bytes)
+            write_file("AES Encryption" + filename, decrypted)
+            print("File content has been encoded.")
         elif choice == '2':
-            encoded_message = alpha_decode(file_content)
+            cipher = AlphaCipher()
+            encoded_message = cipher.decode(content_string)
             write_file("alpha_decoded_" + filename, encoded_message)
             print("File content has been encoded.")
         elif choice == "3":
-            file_hash = generate_md5_hash(file_content)
+            file_hash = generate_md5_hash(content_string)
             user_hash = input("Please enter the MD5 hash values to be compared: ")
             if user_hash == file_hash:
                 print("Hash matches, file not modified。")
