@@ -71,7 +71,7 @@ class DESCipher:
         self.key = key
         
     def encrypt(self, msg):
-        #creates DES object in CBC mode named cipher
+        #creates DES object in Cipher Block Chain mode named cipher
         cipher = DES.new(self.key, DES.MODE_CBC)
         #makes the initialazation vector, its like the key. Could have one set permenatly but using a random one is more secure
         iv = cipher.iv
@@ -83,7 +83,7 @@ class DESCipher:
     def decrypt(self, iv, ciphertext):
         #creates DES object in CBC mode named cipher
         cipher = DES.new(self.key, DES.MODE_CBC, iv=iv)
-        #unpads the cipher text and then decods it
+        #unpads the cipher text and then decodes it
         plaintext = unpad(cipher.decrypt(ciphertext), DES.block_size)
         return plaintext.decode('ascii')
 
