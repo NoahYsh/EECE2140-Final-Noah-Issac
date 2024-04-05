@@ -5,11 +5,12 @@ Created by <Noah>,<Issac>
 Created on 24-3-27, Wednesday:
 """
 import hashlib
-from Cryptodome.Cipher import AES
-from Cryptodome.Random import get_random_bytes
-from Cryptodome.Util.Padding import pad, unpad
-from Cryptodome.Cipher import DES
+from Crypto.Cipher import AES
+import base64
+from Crypto.Util.Padding import pad, unpad
+from Crypto.Cipher import DES
 from pypdf import PdfReader
+import binascii
 
 
 def read_file(filename):
@@ -42,28 +43,158 @@ def write_file(filename, data):
     opened_file.write("\n")
 
 
-class AESCipher:
-    def __init__(self, key):
+class MData():
+    def __init__(self, data=b"", characterSet='utf-8'):
+        # data肯定为bytes
+        self.data = data
+        self.characterSet = characterSet
+
+    def saveData(self, FileName):
+        with open(FileName, 'wb') as f:
+            f.write(self.data)
+
+    def fromString(self, data):
+        self.data = data.encode(self.characterSet)
+        return self.data
+
+    def fromBase64(self, data):
+        self.data = base64.b64decode(data.encode(self.characterSet))
+        return self.data
+
+    def fromHexStr(self, data):
+        self.data = binascii.a2b_hex(data)
+        return self.data
+
+    def toString(self):
+        return self.data.decode(self.characterSet)
+
+    def toBase64(self):
+        return base64.b64encode(self.data).decode()
+
+    def toHexStr(self):
+        return binascii.b2a_hex(self.data).decode()
+
+    def toBytes(self):
+        return self.data
+
+    def __str__(self):
+        try:
+            return self.toString()
+        except Exception:
+            return self.toBase64()
+
+
+class AEScypher():
+    def __init__(self, key, mode, iv='', paddingMode="NoPadding", characterSet="utf-8"):
         self.key = key
+        self.mode = mode
+        self.iv = iv
+        self.characterSet = characterSet
+        self.paddingMode = paddingMode
+        self.data = ""
 
-    def encrypt(self, data):
-        # init iv
-        iv = get_random_bytes(AES.block_size)
-        # create cipher
-        cipher = AES.new(self.key, AES.MODE_CBC, iv)
-        # encode
-        encrypted_data = cipher.encrypt(pad(data.encode(), AES.block_size))
-        #  Add the IV in front of the encrypted data for use in decryption
-        return iv + encrypted_data
+    def __ZeroPadding(self, data):
+        data += b'\x00'
+        while len(data) % 16 != 0:
+            data += b'\x00'
+        return data
 
-    def decrypt(self, encrypted_data):
-        #  Extracting IVs from encrypted data
-        iv = encrypted_data[:AES.block_size]
-        # create decode
-        cipher = AES.new(self.key, AES.MODE_CBC, iv)
-        # decode
-        original_data = unpad(cipher.decrypt(encrypted_data[AES.block_size:]), AES.block_size)
-        return original_data.decode()
+    def __StripZeroPadding(self, data):
+        data = data[:-1]
+        while len(data) % 16 != 0:
+            data = data.rstrip(b'\x00')
+            if data[-1] != b"\x00":
+                break
+        return data
+
+    def __PKCS5_7Padding(self, data):
+        needSize = 16 - len(data) % 16
+        if needSize == 0:
+            needSize = 16
+        return data + needSize.to_bytes(1, 'little') * needSize
+
+    def __StripPKCS5_7Padding(self, data):
+        paddingSize = data[-1]
+        return data.rstrip(paddingSize.to_bytes(1, 'little'))
+
+    def __paddingData(self, data):
+        if self.paddingMode == "NoPadding":
+            if len(data) % 16 == 0:
+                return data
+            else:
+                return self.__ZeroPadding(data)
+        elif self.paddingMode == "ZeroPadding":
+            return self.__ZeroPadding(data)
+        elif self.paddingMode == "PKCS5Padding" or self.paddingMode == "PKCS7Padding":
+            return self.__PKCS5_7Padding(data)
+        else:
+            print("No Padding")
+
+    def __stripPaddingData(self, data):
+        if self.paddingMode == "NoPadding":
+            return self.__StripZeroPadding(data)
+        elif self.paddingMode == "ZeroPadding":
+            return self.__StripZeroPadding(data)
+
+        elif self.paddingMode == "PKCS5Padding" or self.paddingMode == "PKCS7Padding":
+            return self.__StripPKCS5_7Padding(data)
+        else:
+            print("No Padding")
+
+    def setCharacterSet(self, characterSet):
+        self.characterSet = characterSet
+
+    def setPaddingMode(self, mode):
+        self.paddingMode = mode
+
+    def decryptFromBase64(self, entext):
+        mData = MData(characterSet=self.characterSet)
+        self.data = mData.fromBase64(entext)
+        return self.__decrypt()
+
+    def decryptFromHexStr(self, entext):
+        mData = MData(characterSet=self.characterSet)
+        self.data = mData.fromHexStr(entext)
+        return self.__decrypt()
+
+    def decryptFromString(self, entext):
+        mData = MData(characterSet=self.characterSet)
+        self.data = mData.fromString(entext)
+        return self.__decrypt()
+
+    def decryptFromBytes(self, entext):
+        self.data = entext
+        return self.__decrypt()
+
+    def encryptFromString(self, data):
+        self.data = data.encode(self.characterSet)
+        return self.__encrypt()
+
+    def __encrypt(self):
+        if self.mode == AES.MODE_CBC:
+            aes = AES.new(self.key, self.mode, self.iv)
+        elif self.mode == AES.MODE_ECB:
+            aes = AES.new(self.key, self.mode)
+        else:
+            print("No support")
+            return
+
+        data = self.__paddingData(self.data)
+        enData = aes.encrypt(data)
+        return MData(enData)
+
+    def __decrypt(self):
+        if self.mode == AES.MODE_CBC:
+            aes = AES.new(self.key, self.mode, self.iv)
+        elif self.mode == AES.MODE_ECB:
+            aes = AES.new(self.key, self.mode)
+        else:
+            print("No support")
+            return
+        data = aes.decrypt(self.data)
+        mData = MData(self.__stripPaddingData(data), characterSet=self.characterSet)
+        return mData
+
 
 
 class DESCipher:
@@ -133,7 +264,9 @@ def generate_md5_hash(file):
 
 
 def user_interface():
-    aes_key = get_random_bytes(16)
+    key = b"1234567812345678"
+    iv = b"0000000000000000"
+    aes = AEScypher(key, AES.MODE_CBC, iv, paddingMode="ZeroPadding", characterSet='utf-8')
     des_key = b'testerma'
     print(des_key)
     print('\nWelcome to Encryption or Decryption Program.')
@@ -154,9 +287,9 @@ def user_interface():
             print("MD5 Hash of the file content:", hash_result)
             write_file("Hashed_" + filename, hash_result)
         elif choice == '2':
-            cipher = AESCipher(aes_key)
-            encrypted = cipher.encrypt(content_string)
-            write_file("AES Encryption" + filename, encrypted)
+            data = content_string
+            rData = aes.encryptFromString(data)
+            write_file("Encode_" + filename, rData.toBase64())
             print("File content has been encoded.")
         elif choice == '3':
             cipher = AlphaCipher()
@@ -183,11 +316,9 @@ def user_interface():
         choice = input("Your choice (1/2/3/4): ")
 
         if choice == '1':
-            cipher = AESCipher(aes_key)
-            content_bytes = bytes(content_string[2:-1], "utf-8").decode("unicode_escape").encode("raw_unicode_escape")
-            decrypted = cipher.decrypt(content_bytes)
-            write_file("AES Encryption" + filename, decrypted)
-            print("File content has been encoded.")
+            data = content_string
+            rData = aes.decryptFromBase64(data)
+            write_file("decode_" + filename, rData)
         elif choice == '2':
             cipher = AlphaCipher()
             encoded_message = cipher.decode(content_string)
