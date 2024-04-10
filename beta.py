@@ -10,7 +10,6 @@ import base64
 from Crypto.Util.Padding import pad, unpad
 from Crypto.Cipher import DES
 from pypdf import PdfReader
-import binascii
 
 
 def read_file(filename):
@@ -43,15 +42,11 @@ def write_file(filename, data):
     opened_file.write("\n")
 
 
-class MData():
+class MData:
     def __init__(self, data=b"", characterSet='utf-8'):
-        # data肯定为bytes
+        # data is bytes
         self.data = data
         self.characterSet = characterSet
-
-    def saveData(self, FileName):
-        with open(FileName, 'wb') as f:
-            f.write(self.data)
 
     def fromString(self, data):
         self.data = data.encode(self.characterSet)
@@ -61,21 +56,11 @@ class MData():
         self.data = base64.b64decode(data.encode(self.characterSet))
         return self.data
 
-    def fromHexStr(self, data):
-        self.data = binascii.a2b_hex(data)
-        return self.data
-
     def toString(self):
         return self.data.decode(self.characterSet)
 
     def toBase64(self):
         return base64.b64encode(self.data).decode()
-
-    def toHexStr(self):
-        return binascii.b2a_hex(self.data).decode()
-
-    def toBytes(self):
-        return self.data
 
     def __str__(self):
         try:
@@ -84,7 +69,7 @@ class MData():
             return self.toBase64()
 
 
-class AEScypher():
+class aes_cypher:
     def __init__(self, key, mode, iv='', paddingMode="NoPadding", characterSet="utf-8"):
         self.key = key
         self.mode = mode
@@ -141,29 +126,9 @@ class AEScypher():
         else:
             print("No Padding")
 
-    def setCharacterSet(self, characterSet):
-        self.characterSet = characterSet
-
-    def setPaddingMode(self, mode):
-        self.paddingMode = mode
-
     def decryptFromBase64(self, entext):
         mData = MData(characterSet=self.characterSet)
         self.data = mData.fromBase64(entext)
-        return self.__decrypt()
-
-    def decryptFromHexStr(self, entext):
-        mData = MData(characterSet=self.characterSet)
-        self.data = mData.fromHexStr(entext)
-        return self.__decrypt()
-
-    def decryptFromString(self, entext):
-        mData = MData(characterSet=self.characterSet)
-        self.data = mData.fromString(entext)
-        return self.__decrypt()
-
-    def decryptFromBytes(self, entext):
-        self.data = entext
         return self.__decrypt()
 
     def encryptFromString(self, data):
@@ -180,8 +145,8 @@ class AEScypher():
             return
 
         data = self.__paddingData(self.data)
-        enData = aes.encrypt(data)
-        return MData(enData)
+        data_a = aes.encrypt(data)
+        return MData(data_a)
 
     def __decrypt(self):
         if self.mode == AES.MODE_CBC:
@@ -196,25 +161,25 @@ class AEScypher():
         return mData
 
 
-
 class DESCipher:
     def __init__(self, key):
         self.key = key
         
     def encrypt(self, msg):
-        #creates DES object in Cipher Block Chain mode named cipher
+        # creates DES object in Cipher Block Chain mode named cipher
         cipher = DES.new(self.key, DES.MODE_CBC)
-        #makes the initialazation vector, its like the key. Could have one set permenatly but using a random one is more secure
+        # makes the initialazation vector, it's like the key.
+        # Could have one set permenatly but using a random one is more secure
         iv = cipher.iv
-        #encripts the data after padding it out to ensure the data is a multiple of 64 bits
+        # encrypts the data after padding it out to ensure the data is a multiple of 64 bits
         ciphertext = cipher.encrypt(pad(msg.encode('ascii'), DES.block_size))
         print("You will need this for decoding. your i.v is: ", iv.hex())
         return ciphertext
     
     def decrypt(self, iv, ciphertext):
-        #creates DES object in CBC mode named cipher
+        # creates DES object in CBC mode named cipher
         cipher = DES.new(self.key, DES.MODE_CBC, iv=iv)
-        #unpads the cipher text and then decodes it
+        # unpads the cipher text and then decodes it
         plaintext = unpad(cipher.decrypt(ciphertext), DES.block_size)
         return plaintext.decode('ascii')
 
@@ -266,9 +231,8 @@ def generate_md5_hash(file):
 def user_interface():
     key = b"1234567812345678"
     iv = b"0000000000000000"
-    aes = AEScypher(key, AES.MODE_CBC, iv, paddingMode="ZeroPadding", characterSet='utf-8')
+    aes = aes_cypher(key, AES.MODE_CBC, iv, paddingMode="ZeroPadding", characterSet='utf-8')
     des_key = b'testerma'
-    print(des_key)
     print('\nWelcome to Encryption or Decryption Program.')
     mode = input("Encryption press 1 and Decryption press 2: ")
     if mode == '1':
@@ -276,7 +240,7 @@ def user_interface():
         file_content = read_file(filename)
         content_string = ' '.join(file_content)
         print("\nChoose the encryption method:")
-        print("1. MD5 Hash (Note: This is not reversible, not suitable for encryption)")
+        print("1. MD5 Hash (Note: This is used to verify that your files have not been changed)")
         print("2. AES Encryption")
         print("3. Simple Alphabet Shift Encode")
         print("4. DES Encryption")
