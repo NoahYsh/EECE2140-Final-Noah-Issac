@@ -17,7 +17,6 @@ def read_file(filename):
         clean_lines = []
         opened_file = open(filename, 'r')
         lines = opened_file.readlines()
-        # gets ride of \n and appends to clean_lines list
         for i in range(len(lines)):
             clean_lines.append(lines[i].strip())
         opened_file.close()
@@ -43,39 +42,39 @@ def write_file(filename, data):
 
 
 class MData:
-    def __init__(self, data=b"", characterSet='utf-8'):
+    def __init__(self, data=b"", character_set='utf-8'):
         # data is bytes
         self.data = data
-        self.characterSet = characterSet
+        self.characterSet = character_set
 
-    def fromString(self, data):
+    def from_string(self, data):
         self.data = data.encode(self.characterSet)
         return self.data
 
-    def fromBase64(self, data):
+    def from_base64(self, data):
         self.data = base64.b64decode(data.encode(self.characterSet))
         return self.data
 
-    def toString(self):
+    def to_string(self):
         return self.data.decode(self.characterSet)
 
-    def toBase64(self):
+    def to_base64(self):
         return base64.b64encode(self.data).decode()
 
     def __str__(self):
         try:
-            return self.toString()
+            return self.to_string()
         except Exception:
-            return self.toBase64()
+            return self.to_base64()
 
 
-class aes_cypher:
-    def __init__(self, key, mode, iv='', paddingMode="NoPadding", characterSet="utf-8"):
+class AESCipher:
+    def __init__(self, key, mode, iv='', padding_mode="NoPadding", character_set="utf-8"):
         self.key = key
         self.mode = mode
         self.iv = iv
-        self.characterSet = characterSet
-        self.paddingMode = paddingMode
+        self.characterSet = character_set
+        self.paddingMode = padding_mode
         self.data = ""
 
     def __ZeroPadding(self, data):
@@ -93,14 +92,14 @@ class aes_cypher:
         return data
 
     def __PKCS5_7Padding(self, data):
-        needSize = 16 - len(data) % 16
-        if needSize == 0:
-            needSize = 16
-        return data + needSize.to_bytes(1, 'little') * needSize
+        need_size = 16 - len(data) % 16
+        if need_size == 0:
+            need_size = 16
+        return data + need_size.to_bytes(1, 'little') * need_size
 
     def __StripPKCS5_7Padding(self, data):
-        paddingSize = data[-1]
-        return data.rstrip(paddingSize.to_bytes(1, 'little'))
+        padding_size = data[-1]
+        return data.rstrip(padding_size.to_bytes(1, 'little'))
 
     def __paddingData(self, data):
         if self.paddingMode == "NoPadding":
@@ -126,12 +125,12 @@ class aes_cypher:
         else:
             print("No Padding")
 
-    def decryptFromBase64(self, entext):
-        mData = MData(characterSet=self.characterSet)
-        self.data = mData.fromBase64(entext)
+    def decrypt_from_base64(self, entext):
+        mdata = MData(character_set=self.characterSet)
+        self.data = mdata.from_base64(entext)
         return self.__decrypt()
 
-    def encryptFromString(self, data):
+    def encrypt_from_string(self, data):
         self.data = data.encode(self.characterSet)
         return self.__encrypt()
 
@@ -157,8 +156,8 @@ class aes_cypher:
             print("No support")
             return
         data = aes.decrypt(self.data)
-        mData = MData(self.__stripPaddingData(data), characterSet=self.characterSet)
-        return mData
+        mdata = MData(self.__stripPaddingData(data), character_set=self.characterSet)
+        return mdata
 
 
 class DESCipher:
@@ -168,8 +167,8 @@ class DESCipher:
     def encrypt(self, msg):
         # creates DES object in Cipher Block Chain mode named cipher
         cipher = DES.new(self.key, DES.MODE_CBC)
-        # makes the initialazation vector, it's like the key.
-        # Could have one set permenatly but using a random one is more secure
+        # makes the initialization vector, it's like the key.
+        # Could have one set permanently but using a random one is more secure
         iv = cipher.iv
         # encrypts the data after padding it out to ensure the data is a multiple of 64 bits
         ciphertext = cipher.encrypt(pad(msg.encode('ascii'), DES.block_size))
@@ -179,7 +178,7 @@ class DESCipher:
     def decrypt(self, iv, ciphertext):
         # creates DES object in CBC mode named cipher
         cipher = DES.new(self.key, DES.MODE_CBC, iv=iv)
-        # unpads the cipher text and then decodes it
+        # unfilled the cipher text and then decodes it
         plaintext = unpad(cipher.decrypt(ciphertext), DES.block_size)
         return plaintext.decode('ascii')
 
@@ -231,7 +230,7 @@ def generate_md5_hash(file):
 def user_interface():
     key = b"1234567812345678"
     iv = b"0000000000000000"
-    aes = aes_cypher(key, AES.MODE_CBC, iv, paddingMode="ZeroPadding", characterSet='utf-8')
+    aes = AESCipher(key, AES.MODE_CBC, iv, padding_mode="ZeroPadding", character_set='utf-8')
     des_key = b'testerma'
     print('\nWelcome to Encryption or Decryption Program.')
     mode = input("Encryption press 1 and Decryption press 2: ")
@@ -252,8 +251,8 @@ def user_interface():
             write_file("Hashed_" + filename, hash_result)
         elif choice == '2':
             data = content_string
-            rData = aes.encryptFromString(data)
-            write_file("Encode_" + filename, rData.toBase64())
+            rdata = aes.encrypt_from_string(data)
+            write_file("Encode_" + filename, rdata.to_base64())
             print("File content has been encoded.")
         elif choice == '3':
             cipher = AlphaCipher()
@@ -281,8 +280,8 @@ def user_interface():
 
         if choice == '1':
             data = content_string
-            rData = aes.decryptFromBase64(data)
-            write_file("decode_" + filename, rData)
+            rdata = aes.decrypt_from_base64(data)
+            write_file("decode_" + filename, rdata)
         elif choice == '2':
             cipher = AlphaCipher()
             encoded_message = cipher.decode(content_string)
